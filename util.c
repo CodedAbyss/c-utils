@@ -10,14 +10,10 @@
 
 #ifdef UTIL_ITER
 typedef struct iter_t {
-    union {
-        bool (*next)(iter_t*, void*);
-        bool (*next_pair)(iter_t*, void*, void*);
-    };
+    bool (*next)(iter_t*, void*);
     void (*free)(iter_t*);
 } iter_t;
 bool iter_next(iter_t *i, void *ptr) { return i->next(i, ptr); }
-bool iter_next_pair(iter_t *i, void *ptr1, void *ptr2) { return i->next_pair(i, ptr1, ptr2); }
 
 // sketchy iter functions
 typedef struct filter_map_iter_t {
@@ -27,12 +23,12 @@ typedef struct filter_map_iter_t {
 } filter_map_iter_t;
 
 bool __filter_map_iter_next(iter_t *i, void *ptr) {
+    static char buf[2][64];
+    static bool n = 0;
+    n ^= 1;
     filter_map_iter_t *f_iter = (filter_map_iter_t*)i;
-    bool success = 0;
-    void *next;
-    void *mapped_next = 0;
-    while((success = f_iter->inner->next(f_iter->inner, &next)) && !f_iter->filter_map(next, &mapped_next));
-    *(void**)ptr = mapped_next;
+    bool success = false;
+    while((success = f_iter->inner->next(f_iter->inner, buf[n])) && !f_iter->filter_map(buf[n], ptr));
     return success;
 }
 
@@ -70,6 +66,25 @@ void *iter_collect(iter_t *i, i32 *len) {
     return arr;
 }
 
+void *iter_collect_struct(iter_t *i, i32 size, i32 *len) {
+    if(!i) {
+        *len = -1;
+        return 0;
+    }
+    i32 cap = 4, n = 0;
+    char *tmp = malloc(size);
+    char *arr = calloc(cap, size);
+    for(; iter_next(i, tmp); n++) {
+        if(n > 3 && !(n & (n - 1)))
+            arr = realloc(arr, (cap *= 2) * size);
+        memcpy(arr + n * size, tmp, size);
+    }
+    *len = n;
+    free(tmp);
+    iter_free(i);
+    return arr;
+}
+
 void iter_free(iter_t *i) {
     if(i->free) i->free(i); // complex free
     else free(i); // basic free
@@ -77,64 +92,6 @@ void iter_free(iter_t *i) {
 #endif
 
 #ifdef UTIL_STR
-bool  ch_is_an(char c) {
-    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
-}
-bool  ch_is_ws(char c) {
-    switch(c) {
-        case ' ':
-        case '\t':
-        case '\r':
-        case '\n':
-            return 1;
-        default:
-            return 0;
-    }
-}
-char *str_skip_ws(char *str) {
-    while(ch_is_ws(*str)) str++;
-    return str;
-}
-char *str_fmt(char *fmt, i32 *size, ...);
-char *str_ndup(char *str, i32 len) {
-    char *ret = malloc(len + 1);
-    ret[len] = 0;
-    for(i32 n = 0; str[n] && n < len; n++) ret[n] = str[n];
-    return ret;
-}
-char *str_dup(char *str) {
-    i32 n = 0;
-    while(str[n]) n++;
-    char *ret = malloc(n + 1);
-    ret[n] = 0;
-    for(n = 0; str[n]; n++) ret[n] = str[n];
-    return ret;
-}
-char *str_add(char *str, char *extra, i32 *len) {
-    i32 n = 0, m = 0;
-    while(str[n]) n++;
-    while(extra[m]) m++;
-    char *ret = malloc(m + n + 1);
-    ret[m + n] = 0;
-    for(n = 0; str[n]; n++) ret[n] = str[n];
-    for(m = 0; extra[m]; m++) ret[m + n] = extra[m];
-    if(len) *len = m + n;
-    return ret;
-}
-i32 str_b_fmt(char *buf, i32 buf_size, char *fmt, ...);
-void str_b_dup(char *buf, i32 buf_size, char *str) {
-    i32 n = 0;
-    while(str[n] && n < buf_size) buf[n] = str[n];
-}
-void  str_b_add(char *str, i32 buf_size, char *extra, i32 *len) {
-    i32 n = 0, m = 0;
-    while(str[n] && n < buf_size) n++;
-    for(; extra[m] && n + m < buf_size; m++) str[m + n] = extra[m];
-    if(m + n + 1 < buf_size) str[m+++n] = 0;
-    if(len) *len = m + n;
-}
-void  str_scanf(char *str, char *fmt, ...);
-
 #ifdef UTIL_ITER
 typedef struct str_iter_t {
     iter_t i;
@@ -153,8 +110,6 @@ iter_t *str_iter(char *str) {
     ret->str = str;
     return (iter_t*)ret;
 }
-iter_t *str_iter_tok(char *str, char *delims);
-
 typedef struct str_iter_tok_t {
     iter_t i;
     i32 (*is_delimeter)(char*);
@@ -166,7 +121,7 @@ bool __str_iter_tok_next(iter_t *i, void *ptr) {
     str_iter_tok_t *s_iter = (str_iter_tok_t*)i;
     i32 n = 0, l = 0;
     if(s_iter->sym) {
-        *(char**)ptr = str_ndup(s_iter->str, s_iter->sym);
+        *(token_t*)ptr = (token_t) { s_iter->str, s_iter->sym };
         s_iter->str += s_iter->sym;
         s_iter->sym = 0;
         return 1;
@@ -174,18 +129,18 @@ bool __str_iter_tok_next(iter_t *i, void *ptr) {
     while((n = s_iter->is_delimeter(s_iter->str))) s_iter->str += n;
     for(n = 0; s_iter->str[n]; n++) {
         if((l = s_iter->is_delimeter(&s_iter->str[n]))) {
-            *(char**)ptr = str_ndup(s_iter->str, n);
+            *(token_t*)ptr = (token_t) { s_iter->str, n };
             s_iter->str += n + l;
             return 1;
         }
         if((l = s_iter->is_symbol(&s_iter->str[n]))) {
             if(n) {
-                *(char**)ptr = str_ndup(s_iter->str, n);
+                *(token_t*)ptr = (token_t) { s_iter->str, n };
                 s_iter->str += n;
                 s_iter->sym = l;
                 return 1;
             } else {
-                *(char**)ptr = str_ndup(&s_iter->str[n], l);
+                *(token_t*)ptr = (token_t) { s_iter->str, l };
                 s_iter->str += n + l;
                 return 1;
             }
@@ -193,7 +148,7 @@ bool __str_iter_tok_next(iter_t *i, void *ptr) {
     }
     return 0;
 }
-iter_t *str_iter_tok_ex(char *str, i32 (*is_delimeter)(char*), i32 (*is_symbol)(char*)) {
+iter_t *str_iter_tok(char *str, i32 (*is_delimeter)(char*), i32 (*is_symbol)(char*)) {
     str_iter_tok_t *ret = calloc(1, sizeof(str_iter_tok_t));
     ret->i.next = __str_iter_tok_next;
     ret->is_delimeter = is_delimeter;
@@ -411,7 +366,7 @@ void __json_skip_ws(char *buf, int *i);
 void __json_free_internal(json_t *j);
 char *__json_parse_str(char *buf, int *i);
 json_t *__json_parse_any(char *buf, int *i);
-json_t *__json_parse_complex(char *buf, int *i, char arr);
+json_t *__json_parse_complex(char *buf, int *i, bool arr);
 
 void __json_skip_ws(char *buf, int *i) {
     while(1) {
@@ -429,23 +384,25 @@ void __json_skip_ws(char *buf, int *i) {
 void __json_free_internal(json_t *j) {
     switch (j->type) {
         case JSON_OBJECT: {
-            struct json_obj_t *ptr = j->value_obj;
-            while(ptr) {
+            struct json_obj_t *ptr = j->value_obj, *start = ptr;
+            if(!ptr) break;
+            do {
                 struct json_obj_t *next = ptr->next;
                 json_free(ptr->value);
                 free(ptr->tag);
                 free(ptr);
                 ptr = next;
-            }
+            } while(ptr != start);
         } break;
         case JSON_ARRAY: {
-            struct json_arr_t *ptr = j->value_arr;
-            while(ptr) {
+            struct json_arr_t *ptr = j->value_arr, *start = ptr;
+            if(!ptr) break;
+            do {
                 struct json_arr_t *next = ptr->next;
                 json_free(ptr->value);
                 free(ptr);
                 ptr = next;
-            }  
+            } while(ptr != start);
         } break;
         case JSON_BOOL:
         case JSON_NULL:
@@ -484,19 +441,16 @@ char *__json_parse_str(char *buf, int *i) {
     return ret;
 }
 
-json_t *__json_parse_complex(char *buf, int *i, char arr) {
+json_t *__json_parse_complex(char *buf, int *i, bool arr) {
     (*i)++;
-    json_t *ret = calloc(1, sizeof(json_t));
-    struct json_obj_t *ptr;
-    struct json_obj_t *prev = 0;
-    json_t *next;
+    json_t *next, *ret = calloc(1, sizeof(json_t));
     ret->type = arr;
     char end = "}]"[arr];
     ret->value_obj = 0;
     __json_skip_ws(buf, i);
     if(buf[*i] == end) return ret;
     while(1) {
-        char *tag;
+        char *tag = 0;
         if(!arr) {
             if(buf[*i] != '\"') {
                 free(ret);
@@ -512,17 +466,12 @@ json_t *__json_parse_complex(char *buf, int *i, char arr) {
         }
         next = __json_parse_any(buf, i);
         if(!next) {
-            if(!arr) free(tag);
+            if(tag) free(tag);
             json_free(ret);
             return 0;
         }
-        ptr = calloc(1, arr ? sizeof(struct json_arr_t) : sizeof(struct json_obj_t));
-        if(!ret->value_obj) ret->value_obj = ptr;
-        if(!arr) ptr->tag = tag;
-        ptr->value = next;
-        ptr->prev = prev;
-        if(prev) prev->next = ptr;
-        prev = ptr;
+        if(arr) json_arr_add(ret, -1, next);
+        else json_obj_add(ret, tag, next);
         __json_skip_ws(buf, i);
         if(buf[*i] == end) break;
         if(buf[*i] != ',') {
@@ -678,12 +627,14 @@ json_t *json_new_obj() {
 
 json_t *json_obj_get(json_t *j, char *name) {
     if(!j || j->type != JSON_OBJECT) return 0;
-    struct json_obj_t *ptr = j->value_obj;
-    for(; ptr; ptr = ptr->next)
+    struct json_obj_t *ptr = j->value_obj, *start = ptr;
+    if(!ptr) return 0;
+    do {
         if(!strcmp(name, ptr->tag)) return ptr->value;
+        ptr = ptr->next;
+    } while(ptr != start);
     return 0;
 }
-
 void json_obj_add(json_t *j, char *name, json_t *new) {
     if(!j || j->type != JSON_OBJECT) return;
     struct json_obj_t *ptr = calloc(1, sizeof(struct json_obj_t));
@@ -691,22 +642,33 @@ void json_obj_add(json_t *j, char *name, json_t *new) {
     ptr->tag = strdup(name);
     if(!j->value_obj) {
         j->value_obj = ptr;
+        j->value_obj->next = ptr;
+        j->value_obj->prev = ptr;
         return;
     }
-    ptr->next = j->value_obj;
-    j->value_obj->prev = ptr;
-    j->value_obj = ptr;
+    struct json_obj_t *next, *prev;
+    next = j->value_obj; // next is current head
+    prev = j->value_obj->prev; // prev is the last element
+    prev->next = ptr;
+    next->prev = ptr;
+    ptr->next = next;
+    ptr->prev = prev;
 }
 
 json_t *json_obj_del(json_t *j, char *name) {
     if(!j || j->type != JSON_OBJECT) return 0;
-    struct json_obj_t *ptr = j->value_obj;
-    for(; ptr; ptr = ptr->next)
-        if(!strcmp(name, ptr->tag)) break;
-    if(!ptr) return 0;
-    if(ptr->prev) ptr->prev->next = ptr->next;
-    if(ptr->next) ptr->next->prev = ptr->prev;
-    if(ptr == j->value_obj) j->value_obj = ptr->next;
+    struct json_obj_t *ptr = j->value_obj, *start = ptr;
+    while(strcmp(name, ptr->tag)) {
+        ptr = ptr->next;
+        if(ptr == start) return 0;
+    }
+    if(ptr == ptr->next) { // ptr is the only element
+        j->value_obj = 0;
+    } else {
+        ptr->prev->next = ptr->next;
+        ptr->next->prev = ptr->prev;
+        if (ptr == j->value_obj) j->value_obj = ptr->next;
+    }
     json_t *ret = ptr->value;
     free(ptr->tag);
     free(ptr);
@@ -728,19 +690,29 @@ json_t *json_arr_get(json_t *j, i32 i) {
 
 void json_arr_add(json_t *j, i32 i, json_t *new) {
     if(!j || j->type != JSON_ARRAY) return;
-    struct json_arr_t *start = 0;
-    struct json_arr_t *end = j->value_arr;
     struct json_arr_t *ins = calloc(1, sizeof(struct json_arr_t));
     ins->value = new;
-    for(int n = 0; n < i; n++) {
-        start = end;
-        end = end->next;
+    if(!j->value_arr) {
+        j->value_arr = ins;
+        ins->next = ins;
+        ins->prev = ins;
+        return;
     }
-    ins->prev = start;
-    if(start) start->next = ins;
-    ins->next = end;
-    if(end) end->prev = ins;
+    struct json_arr_t *prev = j->value_arr->prev;
+    struct json_arr_t *next = j->value_arr;
+    for(i32 n = 0; n > i; n--) {
+        next = prev;
+        prev = prev->prev;
+    }
+    for(i32 n = 0; n < i; n++) {
+        prev = next;
+        next = next->next;
+    }
     if(!i) j->value_arr = ins;
+    prev->next = ins;
+    next->prev = ins;
+    ins->next = next;
+    ins->prev = prev;
 }
 
 json_t *json_arr_del(json_t *j, i32 i) {
@@ -763,13 +735,14 @@ void __json_fprint_ex(json_t *j, FILE *f, char *indent, int n) {
     switch (j->type) {
         case JSON_OBJECT: {
             fprintf(f, indent ? "{\n" : "{");
-            struct json_obj_t *ptr = j->value_obj;
-            while(ptr) {
+            struct json_obj_t *ptr = j->value_obj, *start = ptr;
+            while(1) {
                 __json_fprint_indent(f, indent, n + 1);
                 fprintf(f, "\"%s\": ", ptr->tag);
                 __json_fprint_ex(ptr->value, f, indent, n + 1);
                 ptr = ptr->next;
-                if(ptr) fprintf(f, indent ? ",\n" : ",");
+                if(ptr != start) fprintf(f, indent ? ",\n" : ",");
+                else break;
             }
             if(indent) fprintf(f, "\n");
             __json_fprint_indent(f, indent, n);
@@ -777,12 +750,13 @@ void __json_fprint_ex(json_t *j, FILE *f, char *indent, int n) {
         } break;
         case JSON_ARRAY: {
             fprintf(f, indent ? "[\n" : "]");
-            struct json_arr_t *ptr = j->value_arr;
-            while(ptr) {
+            struct json_arr_t *ptr = j->value_arr, *start = ptr;
+            while(1) {
                 __json_fprint_indent(f, indent, n + 1);
                 __json_fprint_ex(ptr->value, f, indent, n + 1);
                 ptr = ptr->next;
-                if(ptr) fprintf(f, indent ? ",\n" : ",");
+                if(ptr != start) fprintf(f, indent ? ",\n" : ",");
+                else break;
             }
             if(indent) fprintf(f, "\n");
             __json_fprint_indent(f, indent, n);
@@ -819,22 +793,24 @@ void json_fprint(json_t *j, FILE *f, char *indent) {
 
 #ifdef UTIL_ITER
 // Forward declarations for private functions
-bool __json_iter_obj_next(iter_t *iter, void *name, void *json);
+bool __json_iter_obj_next(iter_t *iter, void *name);
 bool __json_iter_arr_next(iter_t *iter, void *json);
 
 struct json_iter_t {
     iter_t iter;
+    json_t *j;
     union {
         struct json_arr_t *arr;
         struct json_obj_t *obj;
     };
 };
 
-bool __json_iter_obj_next(iter_t *iter, void *name, void *json) {
+bool __json_iter_obj_next(iter_t *iter, void *entry) {
     struct json_iter_t *j_iter = (struct json_iter_t*)iter;
-    if(!j_iter->obj) return 0;
-    *(void**)name = j_iter->obj->tag;
-    *(void**)json = j_iter->obj->value;
+    if(j_iter->j->value_obj == j_iter->obj) return 0;
+    if(!j_iter->obj) j_iter->obj = j_iter->j->value_obj;
+    ((json_entry_t*)entry)->name = j_iter->obj->tag;
+    ((json_entry_t*)entry)->value = j_iter->obj->value;
     j_iter->obj = j_iter->obj->next;
     return 1;
 }
@@ -842,23 +818,25 @@ bool __json_iter_obj_next(iter_t *iter, void *name, void *json) {
 iter_t *json_iter_obj(json_t *j) {
     if(!j || j->type != JSON_OBJECT) return 0;
     struct json_iter_t *j_iter = calloc(1, sizeof(struct json_iter_t));
-    j_iter->obj = j->value_obj;
-    j_iter->iter.next_pair = __json_iter_obj_next;
+    j_iter->j = j;
+    j_iter->iter.next = __json_iter_obj_next;
     return (iter_t*)j_iter;
 }
 
 bool __json_iter_arr_next(iter_t *iter, void *json) {
     struct json_iter_t *j_iter = (struct json_iter_t*)iter;
-    if(!j_iter->arr) return 0;
-    *(void**)json = j_iter->arr->value;
+    if(j_iter->j->value_arr == j_iter->arr) return 0;
+    if(!j_iter->arr) j_iter->arr = j_iter->j->value_arr;
+    *(json_t**)json = j_iter->arr->value;
     j_iter->arr = j_iter->arr->next;
     return 1;
 }
 
+// iterates json_t*
 iter_t *json_iter_arr(json_t *j) {
     if(!j || j->type != JSON_ARRAY) return 0;
     struct json_iter_t *j_iter = calloc(1, sizeof(struct json_iter_t));
-    j_iter->arr = j->value_arr;
+    j_iter->j = j;
     j_iter->iter.next = __json_iter_arr_next;
     return (iter_t*)j_iter;
 }

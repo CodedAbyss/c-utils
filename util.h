@@ -1,7 +1,5 @@
-#define UTIL_TIME
 #define UTIL_ITER
 #define UTIL_JSON
-#define UTIL_MAP
 #define UTIL_STR
 
 #ifndef UTIL_INCLUDED
@@ -22,42 +20,32 @@ typedef float    f32;
 typedef double   f64;
 
 #ifdef UTIL_ITER
+#ifdef UTIL_ITER_IMPL
+typedef struct iter_t {
+    bool (*next)(iter_t*, void*);
+    void (*free)(iter_t*);
+} iter_t;
+#else
 typedef struct iter_t iter_t;
+#endif
 void iter_free(iter_t *i);
 bool iter_next(iter_t *i, void *ptr);
-bool iter_next_pair(iter_t *i, void *ptr1, void *ptr2);
-
 void *iter_collect(iter_t *i, i32 *len);
-void *iter_collect_tiny(iter_t *i, i32 size, i32 *len);
+void *iter_collect_struct(iter_t *i, i32 size, i32 *len);
 iter_t *iter_filter_map(iter_t *i, void *filter_map_func);
-
-#define __GET_FOREACH(_1, _2, FUNC, ...) FUNC
-#define foreach(iter, ...) __GET_FOREACH(__VA_ARGS__, foreach2, foreach1)(iter, __VA_ARGS__)
-#define foreach1(iter, value) for(iter_t *__i = iter; __i; __i = (iter_free(__i), (void*)0)) while(iter_next(__i, value))
-#define foreach2(iter, key, value) for(iter_t *__i = iter; __i; __i = (iter_free(__i), (void*)0)) while(iter_next_pair(__i, key, value))
+#define foreach(iter, value) for(iter_t *__i = iter; __i; __i = (iter_free(__i), (void*)0)) while(iter_next(__i, value))
 #endif
 
 #ifdef UTIL_STR
-bool  ch_is_an(char c);
-bool  ch_is_ws(char c);
-char *str_skip_ws(char *str);
-char *str_fmt(char *fmt, i32 *size, ...);
-char *str_ndup(char *str, i32 len);
-char *str_dup(char *str);
-char *str_add(char *str, char *extra, i32 *len);
-i32   str_b_fmt(char *buf, i32 buf_size, char *fmt, ...);
-void  str_b_dup(char *buf, i32 buf_size, char *str);
-void  str_b_add(char *str, i32 buf_size, char *extra, i32 *len);
-void  str_scanf(char *str, char *fmt, ...);
-bool  str_to_f32(char *str, f32 *f);
-bool  str_to_f64(char *str, f64 *f);
-bool  str_to_i32(char *str, i32 *i);
-bool  str_to_i64(char *str, i64 *i);
-bool  str_to_bool(char *str, bool *b);
 #ifdef UTIL_ITER
+typedef struct token_t {
+    char *ptr;
+    i32 len;
+} token_t;
+// iterates char
 iter_t *str_iter(char *str);
-iter_t *str_iter_tok(char *str, char *delims);
-iter_t *str_iter_tok_ex(char *str, i32 (*is_delimeter)(char*), i32 (*is_symbol)(char*));
+// iterates token_t
+iter_t *str_iter_tok(char *str, i32 (*is_delimeter)(char*), i32 (*is_symbol)(char*));
 #endif
 #endif
 
@@ -117,6 +105,11 @@ typedef struct json_t json_t;
 //Parse unicode
 //Figure out what to do with null values
 
+typedef struct json_entry_t {
+    char *name;
+    json_t *value;
+} json_entry_t;
+
 json_t *json_parse(char *buffer);
 i32 json_type(json_t *j);
 void json_set(json_t *j, json_t *new);
@@ -133,6 +126,7 @@ bool json_get_str(json_t *j, char **ret);
 
 json_t *json_new_obj();
 json_t *json_obj_get(json_t *j, char *name);
+json_t *json_obj_get_or_add(json_t *j, char *name, json_t *new);
 void json_obj_add(json_t *j, char *name, json_t *new);
 json_t *json_obj_del(json_t *j, char *name);
 
@@ -144,7 +138,9 @@ json_t *json_arr_del(json_t *j, i32 i);
 void json_fprint(json_t *j, FILE *f, char *indent);
 
 #ifdef UTIL_ITER
+// iterates json_entry_t
 iter_t *json_iter_obj(json_t *j);
+// iterates json_t*
 iter_t *json_iter_arr(json_t *j);
 #endif
 #endif

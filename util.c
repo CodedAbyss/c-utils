@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+// test
 // Windows pseudo posix compatability
 #ifdef _WIN32
 #define strdup _strdup

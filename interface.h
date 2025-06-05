@@ -1,61 +1,4 @@
 
-enum {
-    SHAPE_SQUARE,
-    SHAPE_CIRCLE
-};
-typedef struct shape {
-    int type_id;
-} shape;
-typedef struct shape_vtbl {
-    int (*get_area)(struct shape *);
-    int (*get_perim)(struct shape *);
-} shape_vtbl;
-
-int square_area(shape *self) {
-    return 0;
-}
-int square_perim(shape *self) {
-    return 0;
-}
-
-int circle_area(shape *self) {
-    return 0;
-}
-int circle_perim(shape *self) {
-    return 0;
-}
-
-shape_vtbl shape_vtbls[] = {
-    [SHAPE_SQUARE] = { .get_area = square_area, .get_perim = square_perim },
-    [SHAPE_CIRCLE] = { .get_area = circle_area, .get_perim = circle_perim }
-};
-
-int shape_area(shape *s) { return shape_vtbls[s->type_id].get_area(s); }
-
-//
-// #define gen5(name, fn, ...) .fn = name##_##fn, gen4(name, __VA_ARGS__)
-// #define gen4(name, fn, ...) .fn = name##_##fn, gen3(name, __VA_ARGS__)
-// #define gen3(name, fn, ...) .fn = name##_##fn, gen2(name, __VA_ARGS__)
-// #define gen2(name, fn, ...) .fn = name##_##fn
-// #define show(...) __VA_ARGS__
-//
-// #define get_name(ret, name, ...) name, 
-// #define gen(name, ...) expand(append, gen, nargs(__VA_ARGS__))
-// //#define impl(iface, name) iface##_vtbl name##_vtbl = { expand(gen(name, iface##_IFACE(get_name) 0), name, iface##_IFACE(get_name) 0) }
-// #define expand_to_impl(pre, ret, name, ...) .name = pre##_##name,
-// #define impl(iface, name) iface##_vtbl name##_vtbl = { iface##_IFACE(expand_to_impl, name) }
-//
-// #define expand_to_fnptr(pre, ret, name, ...) ret (*name)(__VA_ARGS__) { return };
-// #define expand_to_def(pre, ret, name, ...) ret name(__VA_ARGS__) { return pre##_vtbls[0].name(__VA_ARGS__); }
-// #define interface(name) \
-//     typedef struct name { int type_id; } name; \
-//     typedef struct name##_vtbl { \
-//         name##_IFACE(expand_to_fnptr, 0) \
-//     } name##_vtbl; \
-//     name##_vtbl name##_vtbls[]; \
-//     name##_IFACE(expand_to_def, name) \
-
-
 #define nums() 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 #define args_n(_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,_11,_12,N,...) N
 #define nargs(...) expand(args_n, __VA_ARGS__, nums())
@@ -63,50 +6,62 @@ int shape_area(shape *s) { return shape_vtbls[s->type_id].get_area(s); }
 #define expand(fn, ...) fn(__VA_ARGS__)
 #define append(a, b) a##b
 
-#define apply8(fn, ctx, arg, ...) fn(ctx, arg), apply7(fn, ctx, __VA_ARGS__)
-#define apply7(fn, ctx, arg, ...) fn(ctx, arg), apply6(fn, ctx, __VA_ARGS__)
-#define apply6(fn, ctx, arg, ...) fn(ctx, arg), apply5(fn, ctx, __VA_ARGS__)
-#define apply5(fn, ctx, arg, ...) fn(ctx, arg), apply4(fn, ctx, __VA_ARGS__)
-#define apply4(fn, ctx, arg, ...) fn(ctx, arg), apply3(fn, ctx, __VA_ARGS__)
-#define apply3(fn, ctx, arg, ...) fn(ctx, arg), apply2(fn, ctx, __VA_ARGS__)
-#define apply2(fn, ctx, arg, ...) fn(ctx, arg), apply1(fn, ctx, __VA_ARGS__)
-#define apply1(fn, ctx, arg, ...) fn(ctx, arg)
-#define apply_to_all(fn, ctx, ...) expand(expand(append, apply, nargs(__VA_ARGS__)), fn, ctx, __VA_ARGS__)
-#define apply_to_allm1(fn, ctx, ...) expand(expand(append, apply, m1args(__VA_ARGS__)), fn, ctx, __VA_ARGS__)
+#define decom8(a,...) a decom7(__VA_ARGS__)
+#define decom7(a,...) a decom6(__VA_ARGS__)
+#define decom6(a,...) a decom5(__VA_ARGS__)
+#define decom5(a,...) a decom4(__VA_ARGS__)
+#define decom4(a,...) a decom3(__VA_ARGS__)
+#define decom3(a,...) a decom2(__VA_ARGS__)
+#define decom2(a,...) a decom1(__VA_ARGS__)
+#define decom1(a,...) a
 
-#define shape2_IFACE(fn) \
-    fn(int, area, (shape*) self, (int) ctx) \
-    fn(int, perim, (shape*) self, (int) ctx)
+#define apply8(f, c, a, ...) f(c, a), apply7(f, c, __VA_ARGS__)
+#define apply7(f, c, a, ...) f(c, a), apply6(f, c, __VA_ARGS__)
+#define apply6(f, c, a, ...) f(c, a), apply5(f, c, __VA_ARGS__)
+#define apply5(f, c, a, ...) f(c, a), apply4(f, c, __VA_ARGS__)
+#define apply4(f, c, a, ...) f(c, a), apply3(f, c, __VA_ARGS__)
+#define apply3(f, c, a, ...) f(c, a), apply2(f, c, __VA_ARGS__)
+#define apply2(f, c, a, ...) f(c, a), apply1(f, c, __VA_ARGS__)
+#define apply1(f, c, a, ...) f(c, a)
+#define APPLY_ALL(fn, ctx, ...) expand(expand(append, apply, nargs(__VA_ARGS__)), fn, ctx, __VA_ARGS__)
+#define APPLY_ALLm1(fn, ctx, ...) expand(expand(append, apply, m1args(__VA_ARGS__)), fn, ctx, __VA_ARGS__)
+#define decom(...) expand(expand(append, decom, nargs(__VA_ARGS__)), __VA_ARGS__)
 
-#define get_name(ret, name, ...) name,
+#define get_name(ret, name, ...) name
 #define keep(n) n
 #define toss(n)
 #define keep_type(ctx, var) keep var
 #define extract_var(ctx, var) toss var
-#define gen_func(ret, name, ...) ret name(apply_to_all(keep_type, 0, __VA_ARGS__)) { return name##_vtbl(apply_to_all(extract_var, 0, __VA_ARGS__)); }
 
-//#define collect_declarations(
+#define INTERFACE_DECLARE(ret, name, ...) ret (*name)(APPLY_ALL(keep_type, 0, __VA_ARGS__));
+#define GEN_ENUM(ctx, var) TYPE##_##ctx##_##var
+#define iface(name, ...) \
+    typedef struct name { int type_id; } name; \
+    typedef struct name##_vtbl { \
+        name##_IFACE(INTERFACE_DECLARE) \
+    } name##_vtbl; \
+    decom(APPLY_ALLm1(func2, name, name##_IFACE(func1) 0)) \
+    enum { APPLY_ALL(GEN_ENUM, name, __VA_ARGS__) }; \
+    name##_vtbl name##_vtbls[];
 
-#define impl_func(ctx, var) .var = ctx##_##var
-#define impl(iface, name) iface##_vtbl name##_vtbl = { apply_to_allm1(impl_func, name, iface##_IFACE(get_name) 0) }
+#define func0(...) (APPLY_ALL(keep_type, 0, __VA_ARGS__)), (APPLY_ALL(extract_var, 0, __VA_ARGS__))
+//#define func1(ret, name, self, ...) (ret, name, toss self, (keep self, APPLY_ALL(keep_type, 0, __VA_ARGS__)), (toss self, APPLY_ALL(extract_var, 0, __VA_ARGS__))),
+#define func1(ret, name, ...) (ret, name, toss decom1(__VA_ARGS__), func0(__VA_ARGS__)),
+#define collect(iface, ret, name, self, params, vars) inline ret iface##_##name params { return iface##_##vtbls[self->type_id].name vars; }
+#define collect1(arg) collect arg
+#define split_arg(...) __VA_ARGS__
+#define split_arg1(ctx, arg) (ctx, split_arg arg)
+#define func2(ctx, arg) collect1(split_arg1(ctx, arg))
+#define def2(name) decom(APPLY_ALLm1(func2, name, name##_IFACE(func1) 0))
 
-impl(shape2, square);
+#define shape_IFACE(fn) \
+    fn(int, area, (shape*) self) \
+    fn(int, perim, (shape*) self)
 
-#define def(iface, name) iface##_vtbl name##_vtbl = { apply_to_allm1(impl_func, name, iface##_IFACE(get_name) 0) }
+iface(shape, rect, triangle, circle);
 
-def(shape2, square);
+#define impl_func(ctx, var) .var = ctx##_##var,
+#define impl(iface, name) iface##_vtbl name##_vtbl = { APPLY_ALLm1(impl_func, name, iface##_IFACE(get_name) 0) }
 
-
-//get_vars(int, area, (shape*) self, (int) ctx)
-
-//shape2_IFACE(gen_func)
-
-//interface(shape2);
-//impl(shape2, square);
-
-
-// interface(shape2)
-//
-// shape2_vtbl shape2_vtbls[] = {
-//     [SHAPE_SQUARE] = impl(shape2, square)
-// }
+//#define def(iface, name) iface##_vtbl name##_vtbl = { APPLY_ALLm1(impl_func, name, iface##_IFACE(get_name) 0) }
+//def(shape, square);

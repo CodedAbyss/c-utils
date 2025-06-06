@@ -70,7 +70,7 @@
 #define DECOM3(a,...) a DECOM2(__VA_ARGS__)
 #define DECOM2(a,...) a DECOM1(__VA_ARGS__)
 #define DECOM1(a,...) a
-#define DECOM0(a,...) a
+#define DECOM0(...)
 
 // this may look pointless, but it's quite useful.
 // we store the arguments like "(type) var_name"
@@ -103,7 +103,20 @@
 #define GEN_FUNC_DEC(iface, name) APPLY_ALLm1(GEN_FUNC_DEC_ENTRY, name, iface##_IFACE(GET_FUNC_DEC_INFO) 0)
 
 // The final interface macro!
-// USAGE:
+#define interface(name, ...) \
+    typedef struct name { int type_id; } name; \
+    typedef struct name##_vtbl { \
+        name##_IFACE(GEN_IFACE_VTBL) \
+    } name##_vtbl; \
+    enum { APPLY_ALL(GEN_ENUM, name, __VA_ARGS__) }; \
+    DECOM(APPLY_ALL(GEN_TYPEDEFS, name, __VA_ARGS__)) \
+    DECOM(APPLY_ALL2(GEN_FUNC_DEC, name, __VA_ARGS__)) \
+    name##_vtbl name##_vtbls[] = { \
+        APPLY_ALL2(GEN_VTBLS, name, __VA_ARGS__) \
+    }; \
+    DECOM(APPLY_ALLm1(GEN_IFACE_FUNC, name, name##_IFACE(GEN_IFACE_FUNC_INFO) 0))
+
+// ------------------------------- USAGE -------------------------------
 // Step 1. define the interface
 // #define shape_IFACE(fn) \
 //     fn(float, area, (shape*) self) \
@@ -145,12 +158,13 @@
 //
 // int main(int argc, char **argv) {
 //     rectangle r = { 0, 0, 30, 60 };
+//     // now we can use the shape functions on the rectangle directly.
 //     float n = shape_area(&r->parent);
 //     shape_scale(&r->parent, 2.0f);
 //     assert((shape_area(&r->parent) - n * 4.0f) < 0.00001f);
 // }
-// --------------- EXPANDS TO --------------
 //
+// --------------- interface(shape, rectangle, triangle, circle); EXPANDS TO --------------
 // typedef struct shape {
 //   int type_id;
 // } shape;
@@ -181,17 +195,4 @@
 // inline void shape_scale(shape *self, float factor) {
 //   return shape_vtbls[self->type_id].scale(self, factor);
 // }
-//
-#define interface(name, ...) \
-    typedef struct name { int type_id; } name; \
-    typedef struct name##_vtbl { \
-        name##_IFACE(GEN_IFACE_VTBL) \
-    } name##_vtbl; \
-    enum { APPLY_ALL(GEN_ENUM, name, __VA_ARGS__) }; \
-    DECOM(APPLY_ALL(GEN_TYPEDEFS, name, __VA_ARGS__)) \
-    DECOM(APPLY_ALL2(GEN_FUNC_DEC, name, __VA_ARGS__)) \
-    name##_vtbl name##_vtbls[] = { \
-        APPLY_ALL2(GEN_VTBLS, name, __VA_ARGS__) \
-    }; \
-    DECOM(APPLY_ALLm1(GEN_IFACE_FUNC, name, name##_IFACE(GEN_IFACE_FUNC_INFO) 0))
 #endif

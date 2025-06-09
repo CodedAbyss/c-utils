@@ -5,8 +5,8 @@
 
 // Number of args - expands to the number of arguments
 #define NARGS(...) EXPAND(ARGS_N, __VA_ARGS__, NUMS())
-#define NUMS() 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
-#define ARGS_N(_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,_11,_12,N,...) N
+#define NUMS() 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+#define ARGS_N(_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,_11,_12,_13,_14,_15,_16,_17,_18,_19,_20,_21,_22,_23,_24,N,...) N
 
 // Minus 1 args - gets the number of arguments minus one
 #define M1ARGS(v, ...) NARGS(__VA_ARGS__)
@@ -30,6 +30,18 @@
 #define EXPAND2(fn, ...) fn(__VA_ARGS__)
 #define EXPAND3(fn, ...) fn(__VA_ARGS__)
 
+#define APPLY_24(f, c, a, ...) f(c, a), APPLY_23(f, c, __VA_ARGS__)
+#define APPLY_23(f, c, a, ...) f(c, a), APPLY_22(f, c, __VA_ARGS__)
+#define APPLY_22(f, c, a, ...) f(c, a), APPLY_21(f, c, __VA_ARGS__)
+#define APPLY_21(f, c, a, ...) f(c, a), APPLY_20(f, c, __VA_ARGS__)
+#define APPLY_20(f, c, a, ...) f(c, a), APPLY_19(f, c, __VA_ARGS__)
+#define APPLY_19(f, c, a, ...) f(c, a), APPLY_18(f, c, __VA_ARGS__)
+#define APPLY_18(f, c, a, ...) f(c, a), APPLY_17(f, c, __VA_ARGS__)
+#define APPLY_17(f, c, a, ...) f(c, a), APPLY_16(f, c, __VA_ARGS__)
+#define APPLY_16(f, c, a, ...) f(c, a), APPLY_15(f, c, __VA_ARGS__)
+#define APPLY_15(f, c, a, ...) f(c, a), APPLY_14(f, c, __VA_ARGS__)
+#define APPLY_14(f, c, a, ...) f(c, a), APPLY_13(f, c, __VA_ARGS__)
+#define APPLY_13(f, c, a, ...) f(c, a), APPLY_12(f, c, __VA_ARGS__)
 #define APPLY_12(f, c, a, ...) f(c, a), APPLY_11(f, c, __VA_ARGS__)
 #define APPLY_11(f, c, a, ...) f(c, a), APPLY_10(f, c, __VA_ARGS__)
 #define APPLY_10(f, c, a, ...) f(c, a), APPLY_9(f, c, __VA_ARGS__)
@@ -44,6 +56,17 @@
 #define APPLY_1(f, c, a, ...) f(c, a)
 #define APPLY_0(...)
 
+#define APPLY24(f, c, a, ...) f(c, a), APPLY23(f, c, __VA_ARGS__)
+#define APPLY23(f, c, a, ...) f(c, a), APPLY22(f, c, __VA_ARGS__)
+#define APPLY22(f, c, a, ...) f(c, a), APPLY21(f, c, __VA_ARGS__)
+#define APPLY21(f, c, a, ...) f(c, a), APPLY20(f, c, __VA_ARGS__)
+#define APPLY20(f, c, a, ...) f(c, a), APPLY19(f, c, __VA_ARGS__)
+#define APPLY19(f, c, a, ...) f(c, a), APPLY18(f, c, __VA_ARGS__)
+#define APPLY18(f, c, a, ...) f(c, a), APPLY17(f, c, __VA_ARGS__)
+#define APPLY17(f, c, a, ...) f(c, a), APPLY16(f, c, __VA_ARGS__)
+#define APPLY16(f, c, a, ...) f(c, a), APPLY15(f, c, __VA_ARGS__)
+#define APPLY15(f, c, a, ...) f(c, a), APPLY14(f, c, __VA_ARGS__)
+#define APPLY13(f, c, a, ...) f(c, a), APPLY12(f, c, __VA_ARGS__)
 #define APPLY12(f, c, a, ...) f(c, a), APPLY11(f, c, __VA_ARGS__)
 #define APPLY11(f, c, a, ...) f(c, a), APPLY10(f, c, __VA_ARGS__)
 #define APPLY10(f, c, a, ...) f(c, a), APPLY9(f, c, __VA_ARGS__)
@@ -58,6 +81,18 @@
 #define APPLY1(f, c, a, ...) f(c, a)
 #define APPLY0(...)
 
+#define DECOM24(a,...) a DECOM23(__VA_ARGS__)
+#define DECOM23(a,...) a DECOM22(__VA_ARGS__)
+#define DECOM22(a,...) a DECOM21(__VA_ARGS__)
+#define DECOM21(a,...) a DECOM20(__VA_ARGS__)
+#define DECOM20(a,...) a DECOM19(__VA_ARGS__)
+#define DECOM19(a,...) a DECOM18(__VA_ARGS__)
+#define DECOM18(a,...) a DECOM17(__VA_ARGS__)
+#define DECOM17(a,...) a DECOM16(__VA_ARGS__)
+#define DECOM16(a,...) a DECOM15(__VA_ARGS__)
+#define DECOM15(a,...) a DECOM14(__VA_ARGS__)
+#define DECOM14(a,...) a DECOM13(__VA_ARGS__)
+#define DECOM13(a,...) a DECOM12(__VA_ARGS__)
 #define DECOM12(a,...) a DECOM11(__VA_ARGS__)
 #define DECOM11(a,...) a DECOM10(__VA_ARGS__)
 #define DECOM10(a,...) a DECOM9(__VA_ARGS__)
@@ -70,7 +105,7 @@
 #define DECOM3(a,...) a DECOM2(__VA_ARGS__)
 #define DECOM2(a,...) a DECOM1(__VA_ARGS__)
 #define DECOM1(a,...) a
-#define DECOM0(...)
+#define DECOM0(a,...) a
 
 // this may look pointless, but it's quite useful.
 // we store the arguments like "(type) var_name"
@@ -100,7 +135,7 @@
 #define GET_FUNC_DEC_INFO(ret, name, self, ...) (ret, name, TOSS self, APPLY_ALL(KEEP_TYPE, 0, 0, __VA_ARGS__)),
 #define GEN_FUNC_DEC_HELPER(type, ret, fn, self, discard, ...) ret type##_##fn (type *self, ##__VA_ARGS__);
 #define GEN_FUNC_DEC_ENTRY(ctx, var) GEN_FUNC_DEC_HELPER JOIN_ARGS(ctx, var)
-#define GEN_FUNC_DEC(iface, name) APPLY_ALLm1(GEN_FUNC_DEC_ENTRY, name, iface##_IFACE(GET_FUNC_DEC_INFO) 0)
+#define GEN_FUNC_DEC(iface, name) DECOM(APPLY_ALLm1(GEN_FUNC_DEC_ENTRY, name, iface##_IFACE(GET_FUNC_DEC_INFO) 0))
 
 // The final interface macro!
 #define interface(name, ...) \

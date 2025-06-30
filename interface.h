@@ -109,7 +109,6 @@
         name##_IFACE(GEN_IFACE_VTBL) \
     } name##_vtbl; \
     DECOM(APPLY_ALLm1(GEN_IFACE_FUNC, name, name##_IFACE(GEN_IFACE_FUNC_INFO) 0))
-#endif
 
 #define impl(iface, impl) \
     DECOM(APPLY_ALLm1(GEN_FUNC_DEC_ENTRY, impl, iface##_IFACE(GET_FUNC_DEC_INFO) 0)) \

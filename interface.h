@@ -11,10 +11,6 @@
 // Minus 1 args - gets the number of arguments minus one
 #define M1ARGS(v, ...) NARGS(__VA_ARGS__)
 
-// The C preprocessor is not particularly smart.
-// It won't expand recursively. As such we need multiple identical macros so we can nest expansions.
-// This is why we need two APPLY_ALL macros, and three EXPAND macros, because otherwise the macro won't fully expand.
-
 // Applies fn(ctx, arg) for all arguments
 #define APPLY_ALL(fn, ctx, ...) EXPAND(EXPAND(APPEND, APPLY, NARGS(__VA_ARGS__)), fn, ctx, __VA_ARGS__)
 

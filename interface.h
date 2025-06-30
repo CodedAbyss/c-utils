@@ -120,3 +120,5 @@
     iface##_vtbl iface##_##impl = { \
         APPLY_ALLm1(GEN_VTBL_ENTRY, impl, iface##_IFACE(GEN_VTBL_NAME) 0) \
     };
+
+#endif
